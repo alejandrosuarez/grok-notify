@@ -20,7 +20,15 @@
   "resolutions": {
     "uuid": "^9.0.0",
     "stable": "^0.1.8",
-    "q": "^1.5.1"
+    "q": "^1.5.1",
+    "rollup-plugin-terser": "^7.0.2",
+    "sourcemap-codec": "^1.4.8",
+    "workbox-google-analytics": "^6.6.0",
+    "workbox-cacheable-response": "^6.6.0",
+    "are-we-there-yet": "^2.0.0",
+    "npmlog": "^5.0.1",
+    "gauge": "^3.0.2",
+    "path-match": "^1.2.4"
   },
   "browserslist": {
     "production": [
