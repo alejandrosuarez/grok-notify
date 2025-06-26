@@ -24,9 +24,9 @@ const App = () => {
     // Initialize OneSignal only once
     if (!window.OneSignalDeferred) {
       window.OneSignalDeferred = [];
-      const initializeOneSignal = async (retries = 3, delay = 3000) => {
+      const initializeOneSignal = async (OneSignal) => {
         try {
-          await window.OneSignalDeferred[0].init({
+          await OneSignal.init({
             appId: process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID,
             safari_web_id: process.env.REACT_APP_ONESIGNAL_SAFARI_WEB_ID || '',
             autoResubscribe: true,
@@ -35,28 +35,23 @@ const App = () => {
             serviceWorkerPath: 'OneSignalSDKWorker.js',
           });
           // Wait for initialization
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
           if (!window.OneSignal) {
             throw new Error('OneSignal SDK failed to load properly.');
           }
           setIsOneSignalLoaded(true);
-          const isPushSupported = window.OneSignal.Notifications.isPushSupported();
+          const isPushSupported = OneSignal.Notifications.isPushSupported();
           if (!isPushSupported) {
             setError('Push notifications are not supported in this browser.');
             return;
           }
-          const permission = window.OneSignal.Notifications.permission;
+          const permission = OneSignal.Notifications.permission;
           setIsSubscribed(permission === 'granted');
         } catch (error) {
-          if (retries > 0) {
-            setTimeout(() => initializeOneSignal(retries - 1, delay), delay);
-          } else {
-            setError('OneSignal initialization failed after retries: ' + error.message);
-          }
+          setError('OneSignal initialization failed: ' + error.message);
         }
       };
-
-      window.OneSignalDeferred.push({ init: initializeOneSignal });
+      window.OneSignalDeferred.push(initializeOneSignal);
     }
 
     // Update tag when selectedWebsite changes
