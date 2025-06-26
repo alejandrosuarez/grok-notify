@@ -13,12 +13,14 @@ const App = () => {
   const [subscribers, setSubscribers] = useState([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [error, setError] = useState(null);
+  const [isOneSignalLoaded, setIsOneSignalLoaded] = useState(false);
 
   useEffect(() => {
     if (!process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID) {
       setError('Missing OneSignal App ID. Check Vercel environment variables.');
       return;
     }
+
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     OneSignalDeferred.push(async (OneSignal) => {
       try {
@@ -28,12 +30,12 @@ const App = () => {
           autoResubscribe: true,
           notifyButton: { enable: true },
         });
+        setIsOneSignalLoaded(true);
         const isPushSupported = await OneSignal.Notifications.isPushSupported();
         if (!isPushSupported) {
           setError('Push notifications are not supported in this browser.');
           return;
         }
-        // Check subscription status
         const permission = await OneSignal.Notifications.permission;
         setIsSubscribed(permission === 'granted');
         await OneSignal.User.addTag('website', selectedWebsite || window.location.hostname);
@@ -44,12 +46,17 @@ const App = () => {
   }, [selectedWebsite]);
 
   const handleSubscribe = async () => {
+    if (!isOneSignalLoaded || !window.OneSignalDeferred[0]) {
+      setError('OneSignal SDK not loaded. Please try again later.');
+      return;
+    }
     try {
-      await window.OneSignalDeferred[0].Notifications.requestPermission();
-      const permission = await window.OneSignalDeferred[0].Notifications.permission;
+      const OneSignal = window.OneSignalDeferred[0];
+      await OneSignal.Notifications.requestPermission();
+      const permission = await OneSignal.Notifications.permission;
       setIsSubscribed(permission === 'granted');
       if (permission === 'granted') {
-        await window.OneSignalDeferred[0].User.addTag('website', selectedWebsite);
+        await OneSignal.User.addTag('website', selectedWebsite);
         alert('Subscribed successfully!');
       }
     } catch (error) {
@@ -119,9 +126,9 @@ const App = () => {
         <button
           className="bg-purple-500 text-white p-2 rounded"
           onClick={handleSubscribe}
-          disabled={isSubscribed}
+          disabled={isSubscribed || !isOneSignalLoaded}
         >
-          {isSubscribed ? 'Subscribed' : 'Subscribe to Notifications'}
+          {isSubscribed ? 'Subscribed' : isOneSignalLoaded ? 'Subscribe to Notifications' : 'Loading OneSignal...'}
         </button>
       </div>
 
