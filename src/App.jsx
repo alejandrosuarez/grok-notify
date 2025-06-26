@@ -1,33 +1,174 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+
+const websites = [
+  { name: 'Website A', appId: process.env.REACT_APP_ONESIGNAL_WEBSITE_A_APP_ID || 'missing-a-app-id' },
+  { name: 'Website B', appId: process.env.REACT_APP_ONESIGNAL_WEBSITE_B_APP_ID || 'missing-b-app-id' },
+];
 
 const App = () => {
-  const [selectedWebsite, setSelectedWebsite] = useState('Website A');
+  const [selectedWebsite, setSelectedWebsite] = useState(websites[0]?.name || '');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
+  const [subscribers, setSubscribers] = useState([]);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID) {
+      setError('Missing OneSignal App ID. Check Vercel environment variables.');
+      return;
+    }
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async (OneSignal) => {
+      try {
+        await OneSignal.init({
+          appId: process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID,
+          safari_web_id: process.env.REACT_APP_ONESIGNAL_SAFARI_WEB_ID || '',
+          autoResubscribe: true,
+          notifyButton: { enable: true },
+        });
+        const isPushSupported = await OneSignal.Notifications.isPushSupported();
+        if (!isPushSupported) {
+          setError('Push notifications are not supported in this browser.');
+          return;
+        }
+        const subscriptionState = await OneSignal.User.PushSubscription.getSubscription();
+        setIsSubscribed(subscriptionState);
+        await OneSignal.User.addTag('website', selectedWebsite || window.location.hostname);
+      } catch (error) {
+        setError('OneSignal initialization failed: ' + error.message);
+      }
+    });
+  }, [selectedWebsite]);
+
+  const handleSubscribe = async () => {
+    try {
+      await window.OneSignalDeferred[0].Notifications.requestPermission();
+      const subscriptionState = await window.OneSignalDeferred[0].User.PushSubscription.getSubscription();
+      setIsSubscribed(subscriptionState);
+      if (subscriptionState) {
+        await window.OneSignalDeferred[0].User.addTag('website', selectedWebsite);
+        alert('Subscribed successfully!');
+      }
+    } catch (error) {
+      setError('Subscription failed: ' + error.message);
+    }
+  };
+
+  const createSegment = async () => {
+    const website = websites.find((w) => w.name === selectedWebsite);
+    if (website) {
+      try {
+        await axios.post('/api/notifications', {
+          action: 'create_segment',
+          websiteName: website.name,
+          appId: website.appId,
+        });
+        alert('Segment created!');
+      } catch (error) {
+        setError('Error creating segment: ' + error.message);
+      }
+    }
+  };
+
+  const fetchSubscribers = async () => {
+    const website = websites.find((w) => w.name === selectedWebsite);
+    if (website) {
+      try {
+        const response = await axios.post('/api/notifications', {
+          action: 'fetch_subscribers',
+          appId: website.appId,
+        });
+        setSubscribers(response.data.users || []);
+      } catch (error) {
+        setError('Error fetching subscribers: ' + error.message);
+      }
+    }
+  };
+
+  const sendNotification = async () => {
+    const website = websites.find((w) => w.name === selectedWebsite);
+    if (website) {
+      try {
+        await axios.post('/api/notifications', {
+          action: 'send_notification',
+          appId: website.appId,
+          websiteName: website.name,
+          title,
+          message,
+        });
+        alert('Notification sent!');
+      } catch (error) {
+        setError('Error sending notification: ' + error.message);
+      }
+    }
+  };
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Push Notification Manager</h1>
-      <p className="mb-4">App loaded successfully!</p>
+      {error && <div className="text-red-500 mb-4">Error: {error}</div>}
+      <h1 className="text-2xl font-bold mb-4">Push Notification Manager Playground</h1>
+      
       <div className="mb-4">
+        <h2 className="text-xl font-semibold mb-2">Subscription</h2>
+        <p className="mb-2">
+          Status: {isSubscribed ? 'Subscribed' : 'Not Subscribed'}
+        </p>
+        <button
+          className="bg-purple-500 text-white p-2 rounded"
+          onClick={handleSubscribe}
+          disabled={isSubscribed}
+        >
+          {isSubscribed ? 'Subscribed' : 'Subscribe to Notifications'}
+        </button>
+      </div>
+
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold mb-2">Manage Segments</h2>
         <label className="block mb-2">Select Website:</label>
         <select
-          className="border p-2 w-full"
+          className="border p-2 w-full mb-2"
           value={selectedWebsite}
           onChange={(e) => setSelectedWebsite(e.target.value)}
         >
-          <option value="Website A">Website A</option>
-          <option value="Website B">Website B</option>
+          {websites.map((website) => (
+            <option key={website.appId} value={website.name}>
+              {website.name}
+            </option>
+          ))}
         </select>
         <button
-          className="mt-2 bg-blue-500 text-white p-2 rounded"
-          onClick={() => alert('Segment creation not implemented yet')}
+          className="bg-blue-500 text-white p-2 rounded"
+          onClick={createSegment}
         >
           Create Segment
         </button>
       </div>
+
       <div className="mb-4">
-        <h2 className="text-xl font-semibold">Send Test Notification</h2>
+        <h2 className="text-xl font-semibold mb-2">Subscribers</h2>
+        <button
+          className="bg-gray-500 text-white p-2 rounded mb-2"
+          onClick={fetchSubscribers}
+        >
+          Fetch Subscribers
+        </button>
+        {subscribers.length > 0 ? (
+          <ul className="border p-2">
+            {subscribers.map((subscriber) => (
+              <li key={subscriber.id} className="py-1">
+                ID: {subscriber.id} (Subscribed: {subscriber.subscription_status})
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No subscribers found.</p>
+        )}
+      </div>
+
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold mb-2">Send Test Notification</h2>
         <input
           type="text"
           placeholder="Title"
@@ -43,7 +184,7 @@ const App = () => {
         />
         <button
           className="bg-green-500 text-white p-2 rounded"
-          onClick={() => alert('Notification sending not implemented yet')}
+          onClick={sendNotification}
         >
           Send Notification
         </button>

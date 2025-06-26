@@ -51,6 +51,21 @@ module.exports = async (req, res) => {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
+  } else if (action === 'fetch_subscribers') {
+    try {
+      const response = await axios.get(
+        `${ONESIGNAL_API_URL}/apps/${appId}/users`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${ONESIGNAL_API_KEY}`,
+          },
+        }
+      );
+      res.status(200).json({ users: response.data.users || [] });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   } else {
     res.status(400).json({ error: 'Invalid action' });
   }
