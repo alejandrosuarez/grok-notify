@@ -20,6 +20,13 @@
       }
     },
     {
+      "src": "/OneSignalSDK.sw.js",
+      "status": 404,
+      "headers": {
+        "Content-Type": "text/plain"
+      }
+    },
+    {
       "src": "/manifest.json",
       "dest": "/manifest.json",
       "headers": {

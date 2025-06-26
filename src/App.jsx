@@ -24,9 +24,9 @@ const App = () => {
     // Initialize OneSignal only once
     if (!window.OneSignalDeferred) {
       window.OneSignalDeferred = [];
-      window.OneSignalDeferred.push(async (OneSignal) => {
+      const initializeOneSignal = async (retries = 3, delay = 3000) => {
         try {
-          await OneSignal.init({
+          await window.OneSignalDeferred[0].init({
             appId: process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID,
             safari_web_id: process.env.REACT_APP_ONESIGNAL_SAFARI_WEB_ID || '',
             autoResubscribe: true,
@@ -35,26 +35,31 @@ const App = () => {
             serviceWorkerPath: 'OneSignalSDKWorker.js',
           });
           // Wait for initialization
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+          await new Promise((resolve) => setTimeout(resolve, delay));
           if (!window.OneSignal) {
-            setError('OneSignal SDK failed to load properly.');
-            return;
+            throw new Error('OneSignal SDK failed to load properly.');
           }
           setIsOneSignalLoaded(true);
-          const isPushSupported = OneSignal.Notifications.isPushSupported();
+          const isPushSupported = window.OneSignal.Notifications.isPushSupported();
           if (!isPushSupported) {
             setError('Push notifications are not supported in this browser.');
             return;
           }
-          const permission = OneSignal.Notifications.permission;
+          const permission = window.OneSignal.Notifications.permission;
           setIsSubscribed(permission === 'granted');
         } catch (error) {
-          setError('OneSignal initialization failed: ' + error.message);
+          if (retries > 0) {
+            setTimeout(() => initializeOneSignal(retries - 1, delay), delay);
+          } else {
+            setError('OneSignal initialization failed after retries: ' + error.message);
+          }
         }
-      });
+      };
+
+      window.OneSignalDeferred.push({ init: initializeOneSignal });
     }
 
-    // Update tag only when selectedWebsite changes
+    // Update tag when selectedWebsite changes
     if (isOneSignalLoaded && window.OneSignal) {
       window.OneSignal.User.addTag('website', selectedWebsite || window.location.hostname).catch((error) => {
         setError('Failed to set website tag: ' + error.message);
