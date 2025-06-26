@@ -21,18 +21,25 @@ const App = () => {
       return;
     }
 
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async (OneSignal) => {
-      try {
-        await OneSignal.init({
-          appId: process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID,
-          safari_web_id: process.env.REACT_APP_ONESIGNAL_SAFARI_WEB_ID || '',
-          autoResubscribe: true,
-          notifyButton: { enable: true },
-        });
-        // Wait for OneSignal to load (timeout as fallback)
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        if (window.OneSignal) {
+    // Initialize OneSignal only once
+    if (!window.OneSignalDeferred) {
+      window.OneSignalDeferred = [];
+      window.OneSignalDeferred.push(async (OneSignal) => {
+        try {
+          await OneSignal.init({
+            appId: process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID,
+            safari_web_id: process.env.REACT_APP_ONESIGNAL_SAFARI_WEB_ID || '',
+            autoResubscribe: true,
+            notifyButton: { enable: true },
+            serviceWorkerParam: { scope: '/' },
+            serviceWorkerPath: 'OneSignalSDKWorker.js',
+          });
+          // Wait for initialization
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          if (!window.OneSignal) {
+            setError('OneSignal SDK failed to load properly.');
+            return;
+          }
           setIsOneSignalLoaded(true);
           const isPushSupported = OneSignal.Notifications.isPushSupported();
           if (!isPushSupported) {
@@ -41,15 +48,19 @@ const App = () => {
           }
           const permission = OneSignal.Notifications.permission;
           setIsSubscribed(permission === 'granted');
-          await OneSignal.User.addTag('website', selectedWebsite || window.location.hostname);
-        } else {
-          setError('OneSignal SDK failed to load properly.');
+        } catch (error) {
+          setError('OneSignal initialization failed: ' + error.message);
         }
-      } catch (error) {
-        setError('OneSignal initialization failed: ' + error.message);
-      }
-    });
-  }, [selectedWebsite]);
+      });
+    }
+
+    // Update tag only when selectedWebsite changes
+    if (isOneSignalLoaded && window.OneSignal) {
+      window.OneSignal.User.addTag('website', selectedWebsite || window.location.hostname).catch((error) => {
+        setError('Failed to set website tag: ' + error.message);
+      });
+    }
+  }, [selectedWebsite, isOneSignalLoaded]);
 
   const handleSubscribe = async () => {
     if (!isOneSignalLoaded || !window.OneSignal) {

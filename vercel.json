@@ -13,8 +13,18 @@
   ],
   "routes": [
     {
-      "src": "/(manifest.json|OneSignalSDKWorker.js)",
-      "dest": "/$1"
+      "src": "/OneSignalSDKWorker.js",
+      "dest": "/OneSignalSDKWorker.js",
+      "headers": {
+        "Content-Type": "application/javascript"
+      }
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json",
+      "headers": {
+        "Content-Type": "application/json"
+      }
     },
     {
       "src": "/static/(.*)",
