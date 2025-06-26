@@ -33,8 +33,9 @@ const App = () => {
           setError('Push notifications are not supported in this browser.');
           return;
         }
-        const subscriptionState = await OneSignal.User.PushSubscription.getSubscription();
-        setIsSubscribed(subscriptionState);
+        // Check subscription status
+        const permission = await OneSignal.Notifications.permission;
+        setIsSubscribed(permission === 'granted');
         await OneSignal.User.addTag('website', selectedWebsite || window.location.hostname);
       } catch (error) {
         setError('OneSignal initialization failed: ' + error.message);
@@ -45,9 +46,9 @@ const App = () => {
   const handleSubscribe = async () => {
     try {
       await window.OneSignalDeferred[0].Notifications.requestPermission();
-      const subscriptionState = await window.OneSignalDeferred[0].User.PushSubscription.getSubscription();
-      setIsSubscribed(subscriptionState);
-      if (subscriptionState) {
+      const permission = await window.OneSignalDeferred[0].Notifications.permission;
+      setIsSubscribed(permission === 'granted');
+      if (permission === 'granted') {
         await window.OneSignalDeferred[0].User.addTag('website', selectedWebsite);
         alert('Subscribed successfully!');
       }
