@@ -30,21 +30,21 @@ const App = () => {
           autoResubscribe: true,
           notifyButton: { enable: true },
         });
-        // Wait for OneSignal to be fully ready
-        await new Promise((resolve) => {
-          OneSignal.on('sdk:ready', resolve);
-          // Timeout after 5 seconds
-          setTimeout(resolve, 5000);
-        });
-        setIsOneSignalLoaded(true);
-        const isPushSupported = OneSignal.Notifications.isPushSupported();
-        if (!isPushSupported) {
-          setError('Push notifications are not supported in this browser.');
-          return;
+        // Wait for OneSignal to load (timeout as fallback)
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        if (window.OneSignal) {
+          setIsOneSignalLoaded(true);
+          const isPushSupported = OneSignal.Notifications.isPushSupported();
+          if (!isPushSupported) {
+            setError('Push notifications are not supported in this browser.');
+            return;
+          }
+          const permission = OneSignal.Notifications.permission;
+          setIsSubscribed(permission === 'granted');
+          await OneSignal.User.addTag('website', selectedWebsite || window.location.hostname);
+        } else {
+          setError('OneSignal SDK failed to load properly.');
         }
-        const permission = OneSignal.Notifications.permission;
-        setIsSubscribed(permission === 'granted');
-        await OneSignal.User.addTag('website', selectedWebsite || window.location.hostname);
       } catch (error) {
         setError('OneSignal initialization failed: ' + error.message);
       }
@@ -52,13 +52,12 @@ const App = () => {
   }, [selectedWebsite]);
 
   const handleSubscribe = async () => {
-    if (!isOneSignalLoaded || (!window.OneSignal && !window.OneSignalDeferred[0])) {
+    if (!isOneSignalLoaded || !window.OneSignal) {
       setError('OneSignal SDK not loaded. Please try again later or check your network.');
       return;
     }
     try {
-      // Use window.OneSignal directly if available, else fallback to Deferred
-      const OneSignal = window.OneSignal || window.OneSignalDeferred[0];
+      const OneSignal = window.OneSignal;
       if (!OneSignal.Notifications) {
         setError('OneSignal Notifications API not available. SDK may have failed to initialize.');
         return;
