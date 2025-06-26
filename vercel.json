@@ -14,9 +14,10 @@
   "routes": [
     {
       "src": "/OneSignalSDKWorker.js",
-      "dest": "/OneSignalSDKWorker.js",
+      "dest": "/public/OneSignalSDKWorker.js",
       "headers": {
-        "Content-Type": "application/javascript"
+        "Content-Type": "application/javascript",
+        "Cache-Control": "public, max-age=0"
       }
     },
     {
@@ -28,7 +29,7 @@
     },
     {
       "src": "/manifest.json",
-      "dest": "/manifest.json",
+      "dest": "/public/manifest.json",
       "headers": {
         "Content-Type": "application/json"
       }

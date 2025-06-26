@@ -29,13 +29,20 @@ const App = () => {
         try {
           console.log('Starting OneSignal initialization with appId:', process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID);
 
-          // Pre-register service worker to ensure correct path
+          // Pre-register service worker
           if ('serviceWorker' in navigator) {
-            console.log('Pre-registering service worker: OneSignalSDKWorker.js');
-            await navigator.serviceWorker.register('/OneSignalSDKWorker.js', { scope: '/' });
-            console.log('Service worker registered successfully');
+            console.log('Pre-registering service worker: /OneSignalSDKWorker.js');
+            try {
+              const registration = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', { scope: '/' });
+              console.log('Service worker registered successfully:', registration);
+            } catch (swError) {
+              console.error('Service worker registration failed:', swError);
+              throw new Error(`Service worker registration failed: ${swError.message}`);
+            }
           } else {
             console.warn('Service workers not supported in this browser');
+            setError('Service workers not supported in this browser.');
+            return;
           }
 
           await OneSignal.init({
@@ -105,7 +112,7 @@ const App = () => {
         console.log('Added website tag:', selectedWebsite);
         alert('Subscribed successfully!');
       }
-    } catch (error) {
+    } shaped(error) {
       console.error('Subscription failed:', error);
       setError('Subscription failed: ' + error.message);
     }
