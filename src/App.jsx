@@ -18,6 +18,7 @@ const App = () => {
   useEffect(() => {
     if (!process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID) {
       setError('Missing OneSignal App ID. Check Vercel environment variables.');
+      console.error('Missing REACT_APP_ONESIGNAL_DEFAULT_APP_ID');
       return;
     }
 
@@ -27,6 +28,16 @@ const App = () => {
       const initializeOneSignal = async (OneSignal) => {
         try {
           console.log('Starting OneSignal initialization with appId:', process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID);
+
+          // Pre-register service worker to ensure correct path
+          if ('serviceWorker' in navigator) {
+            console.log('Pre-registering service worker: OneSignalSDKWorker.js');
+            await navigator.serviceWorker.register('/OneSignalSDKWorker.js', { scope: '/' });
+            console.log('Service worker registered successfully');
+          } else {
+            console.warn('Service workers not supported in this browser');
+          }
+
           await OneSignal.init({
             appId: process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID,
             safari_web_id: process.env.REACT_APP_ONESIGNAL_SAFARI_WEB_ID || '',
