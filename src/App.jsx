@@ -65,7 +65,7 @@ const App = () => {
           const isPushSupported = OneSignal.Notifications.isPushSupported();
           console.log('Push notifications supported:', isPushSupported);
           if (!isPushSupported) {
-            setError('Push notifications are not supported in this browser.');
+            setError('Push notifications not supported in this browser.');
             return;
           }
           const permission = OneSignal.Notifications.permission;
@@ -112,7 +112,7 @@ const App = () => {
         console.log('Added website tag:', selectedWebsite);
         alert('Subscribed successfully!');
       }
-    } shaped(error) {
+    } catch (error) {
       console.error('Subscription failed:', error);
       setError('Subscription failed: ' + error.message);
     }
