@@ -26,6 +26,7 @@ const App = () => {
       window.OneSignalDeferred = [];
       const initializeOneSignal = async (OneSignal) => {
         try {
+          console.log('Starting OneSignal initialization with appId:', process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID);
           await OneSignal.init({
             appId: process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID,
             safari_web_id: process.env.REACT_APP_ONESIGNAL_SAFARI_WEB_ID || '',
@@ -33,30 +34,38 @@ const App = () => {
             notifyButton: { enable: true },
             serviceWorkerParam: { scope: '/' },
             serviceWorkerPath: 'OneSignalSDKWorker.js',
+            serviceWorkerUpdaterPath: 'OneSignalSDKWorker.js',
           });
+          console.log('OneSignal.init called with serviceWorkerPath: OneSignalSDKWorker.js');
           // Wait for initialization
           await new Promise((resolve) => setTimeout(resolve, 3000));
           if (!window.OneSignal) {
             throw new Error('OneSignal SDK failed to load properly.');
           }
+          console.log('OneSignal SDK loaded:', window.OneSignal);
           setIsOneSignalLoaded(true);
           const isPushSupported = OneSignal.Notifications.isPushSupported();
+          console.log('Push notifications supported:', isPushSupported);
           if (!isPushSupported) {
             setError('Push notifications are not supported in this browser.');
             return;
           }
           const permission = OneSignal.Notifications.permission;
+          console.log('Notification permission:', permission);
           setIsSubscribed(permission === 'granted');
         } catch (error) {
+          console.error('OneSignal initialization error:', error);
           setError('OneSignal initialization failed: ' + error.message);
         }
       };
       window.OneSignalDeferred.push(initializeOneSignal);
+      console.log('Pushed initializeOneSignal to OneSignalDeferred');
     }
 
     // Update tag when selectedWebsite changes
     if (isOneSignalLoaded && window.OneSignal) {
       window.OneSignal.User.addTag('website', selectedWebsite || window.location.hostname).catch((error) => {
+        console.error('Failed to set website tag:', error);
         setError('Failed to set website tag: ' + error.message);
       });
     }
@@ -65,22 +74,28 @@ const App = () => {
   const handleSubscribe = async () => {
     if (!isOneSignalLoaded || !window.OneSignal) {
       setError('OneSignal SDK not loaded. Please try again later or check your network.');
+      console.error('handleSubscribe: OneSignal not loaded');
       return;
     }
     try {
       const OneSignal = window.OneSignal;
       if (!OneSignal.Notifications) {
         setError('OneSignal Notifications API not available. SDK may have failed to initialize.');
+        console.error('handleSubscribe: Notifications API unavailable');
         return;
       }
+      console.log('Requesting notification permission');
       await OneSignal.Notifications.requestPermission();
       const permission = OneSignal.Notifications.permission;
+      console.log('Permission after request:', permission);
       setIsSubscribed(permission === 'granted');
       if (permission === 'granted') {
         await OneSignal.User.addTag('website', selectedWebsite);
+        console.log('Added website tag:', selectedWebsite);
         alert('Subscribed successfully!');
       }
     } catch (error) {
+      console.error('Subscription failed:', error);
       setError('Subscription failed: ' + error.message);
     }
   };
@@ -89,6 +104,7 @@ const App = () => {
     const website = websites.find((w) => w.name === selectedWebsite);
     if (website) {
       try {
+        console.log('Creating segment for:', website.name);
         await axios.post('/api/notifications', {
           action: 'create_segment',
           websiteName: website.name,
@@ -96,6 +112,7 @@ const App = () => {
         });
         alert('Segment created!');
       } catch (error) {
+        console.error('Create segment failed:', error);
         setError('Error creating segment: ' + error.message);
       }
     }
@@ -105,12 +122,14 @@ const App = () => {
     const website = websites.find((w) => w.name === selectedWebsite);
     if (website) {
       try {
+        console.log('Fetching subscribers for appId:', website.appId);
         const response = await axios.post('/api/notifications', {
           action: 'fetch_subscribers',
           appId: website.appId,
         });
         setSubscribers(response.data.users || []);
       } catch (error) {
+        console.error('Fetch subscribers failed:', error);
         setError('Error fetching subscribers: ' + error.message);
       }
     }
@@ -120,6 +139,7 @@ const App = () => {
     const website = websites.find((w) => w.name === selectedWebsite);
     if (website) {
       try {
+        console.log('Sending notification for:', website.name, { title, message });
         await axios.post('/api/notifications', {
           action: 'send_notification',
           appId: website.appId,
@@ -129,6 +149,7 @@ const App = () => {
         });
         alert('Notification sent!');
       } catch (error) {
+        console.error('Send notification failed:', error);
         setError('Error sending notification: ' + error.message);
       }
     }
