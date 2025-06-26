@@ -22,7 +22,7 @@ const App = () => {
     }
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async (OneSignal) => {
+    window.OneSignalDeferred.push(async (OneSignal) => {
       try {
         await OneSignal.init({
           appId: process.env.REACT_APP_ONESIGNAL_DEFAULT_APP_ID,
@@ -30,13 +30,19 @@ const App = () => {
           autoResubscribe: true,
           notifyButton: { enable: true },
         });
+        // Wait for OneSignal to be fully ready
+        await new Promise((resolve) => {
+          OneSignal.on('sdk:ready', resolve);
+          // Timeout after 5 seconds
+          setTimeout(resolve, 5000);
+        });
         setIsOneSignalLoaded(true);
-        const isPushSupported = await OneSignal.Notifications.isPushSupported();
+        const isPushSupported = OneSignal.Notifications.isPushSupported();
         if (!isPushSupported) {
           setError('Push notifications are not supported in this browser.');
           return;
         }
-        const permission = await OneSignal.Notifications.permission;
+        const permission = OneSignal.Notifications.permission;
         setIsSubscribed(permission === 'granted');
         await OneSignal.User.addTag('website', selectedWebsite || window.location.hostname);
       } catch (error) {
@@ -46,14 +52,19 @@ const App = () => {
   }, [selectedWebsite]);
 
   const handleSubscribe = async () => {
-    if (!isOneSignalLoaded || !window.OneSignalDeferred[0]) {
-      setError('OneSignal SDK not loaded. Please try again later.');
+    if (!isOneSignalLoaded || (!window.OneSignal && !window.OneSignalDeferred[0])) {
+      setError('OneSignal SDK not loaded. Please try again later or check your network.');
       return;
     }
     try {
-      const OneSignal = window.OneSignalDeferred[0];
+      // Use window.OneSignal directly if available, else fallback to Deferred
+      const OneSignal = window.OneSignal || window.OneSignalDeferred[0];
+      if (!OneSignal.Notifications) {
+        setError('OneSignal Notifications API not available. SDK may have failed to initialize.');
+        return;
+      }
       await OneSignal.Notifications.requestPermission();
-      const permission = await OneSignal.Notifications.permission;
+      const permission = OneSignal.Notifications.permission;
       setIsSubscribed(permission === 'granted');
       if (permission === 'granted') {
         await OneSignal.User.addTag('website', selectedWebsite);
