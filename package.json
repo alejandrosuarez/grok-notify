@@ -11,10 +11,16 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "axios": "^1.7.2",
-    "react-scripts": "^5.0.1"
+    "react-scripts": "^5.0.1",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "vercel": "^32.0.0"
+    "vercel": "^34.2.7"
+  },
+  "resolutions": {
+    "uuid": "^9.0.0",
+    "stable": "^0.1.8",
+    "q": "^1.5.1"
   },
   "browserslist": {
     "production": [
